@@ -13,7 +13,7 @@ namespace StateChart
         void Suspend();
         void Resume();
         void Process(IEvent evt);
-        void Transit<TState>();
+        EResult Transit<TState>();
     }
 
     //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
@@ -72,12 +72,12 @@ namespace StateChart
         void DoEntry() { }
         void DoExit() { }
 
-        void Transit(IState state)
+        EResult Transit(IState state)
         {
             IState lstate = null;
 
             lstate = outestState;
-            while (lstate.GetActiveState() != null) {  //maybe we could save it.
+            while (lstate.GetActiveState() != null) {  // we could save it.
                 lstate = lstate.GetActiveState();
             }
 
@@ -98,7 +98,7 @@ namespace StateChart
                 rstate = rstate.GetOuterState();
             }
             if (rstate == lstate)  //is family
-                return;
+                return EResult.None;
             do
             { //find nearest outer state
                 rstate = rstate.GetOuterState();
@@ -128,24 +128,28 @@ namespace StateChart
             }
 
             activeStates.Sort((x, y) => x.GetDepth() - y.GetDepth());
+            return EResult.None;
         }
 
-        public void Transit(Type stateType)
+        public EResult Transit(Type stateType)
         {
             IState state = null;
             if (!typeStates.TryGetValue(stateType, out state))
-                return;
-            Transit(state);
+                return EResult.None;
+            return Transit(state);
         }
 
-        public void Transit<TState>() 
-        { Transit(typeof(TState)); }
+        public EResult Transit<TState>() 
+        { return Transit(typeof(TState)); }
 
         public void Process(IEvent evt)
         {
             if (bSuspend) return;
-            foreach (IState state in activeStates)
-                state.Process(evt);
+            foreach (IState state in activeStates) {
+                if (state.Process(evt) == EResult.None)
+                    break;
+                
+            }
         }
 
         public void Suspend()
