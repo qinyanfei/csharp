@@ -18,7 +18,7 @@ namespace StateChart
 
     //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
     //supporting region was too complicate and not beautiful. region always could be replace by more statemachine. 
-    //you could direct create State<...> to use it. or you could inherit from it, this is a more powerful method.
+    //you could directly create State<...> to use it. or you could inherit from it, this is a more powerful method.
     //deep history is useful, not so hard to support it. maybe later.
     class StateMachine : IStateMachine
     {
