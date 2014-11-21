@@ -17,7 +17,6 @@ namespace StateChart
     public delegate void Reaction();
     public delegate EResult Reaction<T>(T obj);
 
-
     interface IState
     {
         Type type { get; }
@@ -34,8 +33,6 @@ namespace StateChart
         int GetDepth();
         void SetDepth(int depth);
     }
-
-    
 
     class State<T> : IState
     {
@@ -60,9 +57,9 @@ namespace StateChart
         }
 
         public void Entry()
-        { if (entryCallback != null) entryCallback(); }
+        { if (entryCallback != null) entryCallback(); Console.WriteLine("entry: " + typeof(T).ToString()); }
         public void Exit()
-        { if (exitCallback != null) exitCallback(); }
+        { if (exitCallback != null) exitCallback(); Console.WriteLine("exit: " + typeof(T).ToString()); }
 
         protected virtual void OnEntry() { }
         protected virtual void OnExit() { }
@@ -81,13 +78,11 @@ namespace StateChart
         }
 
         public void Bind<E>(Reaction<IEvent> reaction)
-        {
-            reactions.Add(typeof(E), reaction);
-        }
+        { reactions.Add(typeof(E), reaction); }
 
         public void SetOuterState(IState ostate) { outerState = ostate; }
         public IState GetOuterState() { return outerState; }
-        
+
         public void AddSubState(IState sstate) 
         {
             IState state = subStates.Find((x) => x.type == sstate.type);
