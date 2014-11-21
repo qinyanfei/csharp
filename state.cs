@@ -60,9 +60,9 @@ namespace StateChart
         }
 
         public void Entry()
-        { if (entryCallback != null) entryCallback(); Console.WriteLine("entry: " + typeof(T).ToString()); }
+        { if (entryCallback != null) entryCallback(); }
         public void Exit()
-        { if (exitCallback != null) exitCallback(); Console.WriteLine("exit: " + typeof(T).ToString()); }
+        { if (exitCallback != null) exitCallback(); }
 
         protected virtual void OnEntry() { }
         protected virtual void OnExit() { }
@@ -87,6 +87,7 @@ namespace StateChart
 
         public void SetOuterState(IState ostate) { outerState = ostate; }
         public IState GetOuterState() { return outerState; }
+        
         public void AddSubState(IState sstate) 
         {
             IState state = subStates.Find((x) => x.type == sstate.type);
