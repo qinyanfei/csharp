@@ -4,10 +4,16 @@ using System.Collections.Generic;
 
 namespace StateChart
 {
-    using RegionId = System.Int32;
     using StateList = List<IState>;
-    using RegionTable = Dictionary<System.Int32, List<IState>>;
 
+    public enum EResult
+    { 
+        None,
+        Forwad,
+        Resume,
+        Defered,
+    }
+    
     public delegate void Reaction();
     public delegate EResult Reaction<T>(T obj);
 
@@ -17,7 +23,7 @@ namespace StateChart
         Type type { get; }
         void Entry();
         void Exit();
-        void Process(IEvent evt);
+        EResult Process(IEvent evt);
         IState GetOuterState();
         StateList GetsubStates();
         IState GetActiveState();
@@ -66,12 +72,12 @@ namespace StateChart
         public void SetExit(Reaction callback)
         { exitCallback = callback; }
 
-        public void Process(IEvent evt) 
+        public EResult Process(IEvent evt) 
         { 
             Reaction<IEvent> reaction = null;
             bool hasit = reactions.TryGetValue(evt.GetType(), out reaction);
-            if (!hasit) return;
-            reaction(evt);
+            if (!hasit) return EResult.Forwad;
+            return reaction(evt);
         }
 
         public void Bind<E>(Reaction<IEvent> reaction)
