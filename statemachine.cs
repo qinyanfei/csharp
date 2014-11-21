@@ -112,7 +112,7 @@ namespace StateChart
             } while (ltail != lstate);
 
             //add tail chain active states
-            activeStates.RemoveRange(rstate.GetDepth() + 1, rtail.GetDepth() - rstate.GetDepth());
+            activeStates.RemoveRange(rstate.GetDepth() + 1, activeStates.Count - rstate.GetDepth() - 1);
             do
             {
                 activeStates.Add(rtail);
