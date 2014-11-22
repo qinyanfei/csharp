@@ -12,12 +12,12 @@ namespace StateChart
         void Init(IState state);
         void Suspend();
         void Resume();
-        void Process(IEvent evt);
+        void Process(Event evt);
         EResult Transit<TState>();
     }
 
     //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
-    //supporting region was too complicate and not beautiful. region always could be replace by more statemachine. 
+    //supporting region is too complicate and not beautiful. region always could be replace by more statemachine. 
     //you could directly create State<...> to use it. or you could inherit from it, this is a more powerful method.
     //deep history is useful, not so hard to support it later.
     class StateMachine : IStateMachine
@@ -68,9 +68,6 @@ namespace StateChart
             foreach (IState sstate in statelsit)
             { BuildStateTable(sstate, depth_ + 1); }
         }
-
-        void DoEntry() { }
-        void DoExit() { }
 
         EResult Transit(IState state)
         {
@@ -142,11 +139,11 @@ namespace StateChart
         public EResult Transit<TState>() 
         { return Transit(typeof(TState)); }
 
-        public void Process(IEvent evt)
+        public void Process(Event evt)
         {
             if (bSuspend) return;
             foreach (IState state in activeStates) {
-                if (state.Process(evt) == EResult.None)
+                if (bSuspend || state.Process(evt) == EResult.None)
                     break;
             }
         }
