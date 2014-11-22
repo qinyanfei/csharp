@@ -19,55 +19,70 @@ namespace StateChart
 
     interface IState
     {
-        Type type { get; }
-        void Entry();
-        void Exit();
+        void DoEntry();
+        void DoExit();
         EResult Process(Event evt);
-        IState GetOuterState();
-        StateList GetsubStates();
-        IState GetActiveState();
-        void SetActiveState(IState state);
         void AddSubState(IState state);
-        IState GetInitState();
-        void SetInitState(IState state);
-        int GetDepth();
-        void SetDepth(int depth);
+        IEnumerable<IState> IterateSubState();
+
+        Type type { get; }
+        Reaction Entry { get; set; }
+        Reaction Exit { get; set; }
+        IState OuterState { get; }
+        IState ActiveState { get; set; }
+        IState InitState { get; set; }
+        int Depth { get; set; }
     }
 
     class State<T> : IState
     {
         int depth = -1;  //could calc on runtime, but we need more fast spped this time.
+        public int Depth { get { return depth; } set { depth = value; } }
         Reaction entryCallback = null;
+        public Reaction Entry { get { return entryCallback; } set { entryCallback = value; } }
         Reaction exitCallback = null;
+        public Reaction Exit { get { return exitCallback; } set { exitCallback = value; } }
 
         Dictionary<Type, Reaction<Event>> reactions = new Dictionary<Type, Reaction<Event>>();
         StateList subStates = new StateList();
+
         IState outerState = null;
+        public IState OuterState 
+        { get { return outerState; } }
+
         IState activeState = null;
+        public IState ActiveState { get { return activeState; } set { activeState = value; } }
+
         IState initState = null;
+        public IState InitState 
+        { 
+            get 
+            {
+                if (initState == null)
+                    if (subStates.Count > 0)
+                        initState = subStates[0];
+                return initState;
+            } 
+            set { initState = value; }
+        }
 
         public Type type { get { return typeof(T); } }
 
         public State(IState ostate)
         {
-            entryCallback = OnEntry; exitCallback = OnExit;
+            Entry = OnEntry; Exit = OnExit;
             outerState = ostate;
             if(outerState != null)
                 outerState.AddSubState(this);
         }
 
-        public void Entry()
-        { if (entryCallback != null) entryCallback(); Console.WriteLine("entry: " + typeof(T).ToString()); }
-        public void Exit()
-        { if (exitCallback != null) exitCallback(); Console.WriteLine("exit: " + typeof(T).ToString()); }
+        public void DoEntry()
+        { if (Entry != null) Entry(); Console.WriteLine("entry: " + typeof(T).ToString()); }
+        public void DoExit()
+        { if (Exit != null) Exit(); Console.WriteLine("exit: " + typeof(T).ToString()); }
 
         protected virtual void OnEntry() { }
         protected virtual void OnExit() { }
-
-        public void SetEntry(Reaction callback)
-        { entryCallback = callback; }
-        public void SetExit(Reaction callback)
-        { exitCallback = callback; }
 
         public EResult Process(Event evt) 
         { 
@@ -80,34 +95,17 @@ namespace StateChart
         public void Bind<E>(Reaction<Event> reaction)
         { reactions.Add(typeof(E), reaction); }
 
-        public void SetOuterState(IState ostate) { outerState = ostate; }
-        public IState GetOuterState() { return outerState; }
-
-        public void AddSubState(IState sstate) 
+        public void AddSubState(IState sstate)
         {
             IState state = subStates.Find((x) => x.type == sstate.type);
             if (state != null) return;
             subStates.Add(sstate);
         }
-        public StateList GetsubStates() 
-        { return subStates; }
 
-        public IState GetActiveState() 
-        { return activeState; }
-        public void SetActiveState(IState activeState_)
-        { activeState = activeState_; }
-
-        public IState GetInitState()
-        {
-            if (initState == null)
-                if (subStates.Count > 0)
-                    initState = subStates[0];
-            return initState;
+        public IEnumerable<IState> IterateSubState() {
+            foreach (IState state in subStates) {
+                yield return state;
+            }
         }
-        public void SetInitState(IState initstate)
-        { initState = initstate;  }
-
-        public void SetDepth(int depth_) { depth = depth_; }
-        public int GetDepth() { return depth; }
     }
 }
