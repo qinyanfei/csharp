@@ -32,6 +32,7 @@ namespace StateChart
         IState ActiveState { get; set; }
         IState InitState { get; set; }
         int Depth { get; set; }
+        EHistory History { get; set; }
     }
 
     class State<T> : IState
@@ -67,11 +68,13 @@ namespace StateChart
         }
 
         public Type type { get { return typeof(T); } }
+        public EHistory History { get; set; }
 
-        public State(IState ostate)
+        public State(IState ostate, EHistory history_ = EHistory.Shallow)
         {
             Entry = OnEntry; Exit = OnExit;
             outerState = ostate;
+            History = history_;
             if(outerState != null)
                 outerState.AddSubState(this);
         }
