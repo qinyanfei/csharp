@@ -7,6 +7,12 @@ namespace StateChart
     using StateList = List<IState>;
     using RegionTable = Dictionary<System.Int32, List<IState>>;
 
+    public enum EHistory
+    { 
+        Shallow,
+        Deep,
+    }
+
     interface IStateMachine
     {
         void Init(IState state);
@@ -17,9 +23,8 @@ namespace StateChart
     }
 
     //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
-    //supporting region is too complicate and not beautiful. region always could be replace by more statemachine. 
+    //supporting region is too complicate and not beautiful. region always could be replaced by more statemachine. 
     //you could directly create State<...> to use it. or you could inherit from it, this is a more powerful method.
-    //deep history is useful, not so hard to support it later.
     class StateMachine : IStateMachine
     {
         Dictionary<Type, IState> typeStates = new Dictionary<Type, IState>();
@@ -79,9 +84,13 @@ namespace StateChart
             }
 
             IState rstate = state;
-            while (rstate.InitState != null) {
+            if (state.History == EHistory.Shallow)
+                while (rstate.InitState != null)
                     rstate = state.InitState;
-            }
+            else
+                while (rstate.ActiveState != null)
+                    rstate = rstate.ActiveState;
+
 
             IState ltail = lstate;  //save tail of active states
             IState rtail = rstate;    //save tail of init states
