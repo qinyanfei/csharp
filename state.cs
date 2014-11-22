@@ -22,7 +22,7 @@ namespace StateChart
         Type type { get; }
         void Entry();
         void Exit();
-        EResult Process(IEvent evt);
+        EResult Process(Event evt);
         IState GetOuterState();
         StateList GetsubStates();
         IState GetActiveState();
@@ -36,11 +36,11 @@ namespace StateChart
 
     class State<T> : IState
     {
-        int depth = -1;  //could calc on runtime, but we need more fast this time.
+        int depth = -1;  //could calc on runtime, but we need more fast spped this time.
         Reaction entryCallback = null;
         Reaction exitCallback = null;
 
-        Dictionary<Type, Reaction<IEvent>> reactions = new Dictionary<Type, Reaction<IEvent>>();
+        Dictionary<Type, Reaction<Event>> reactions = new Dictionary<Type, Reaction<Event>>();
         StateList subStates = new StateList();
         IState outerState = null;
         IState activeState = null;
@@ -69,15 +69,15 @@ namespace StateChart
         public void SetExit(Reaction callback)
         { exitCallback = callback; }
 
-        public EResult Process(IEvent evt) 
+        public EResult Process(Event evt) 
         { 
-            Reaction<IEvent> reaction = null;
+            Reaction<Event> reaction = null;
             bool hasit = reactions.TryGetValue(evt.GetType(), out reaction);
             if (!hasit) return EResult.Forwad;
             return reaction(evt);
         }
 
-        public void Bind<E>(Reaction<IEvent> reaction)
+        public void Bind<E>(Reaction<Event> reaction)
         { reactions.Add(typeof(E), reaction); }
 
         public void SetOuterState(IState ostate) { outerState = ostate; }
