@@ -34,10 +34,10 @@ namespace StateChart
             IState pstate = state;
 
             //add outer states
-            while (pstate.GetOuterState() != null) {
-                pstate.GetOuterState().SetActiveState(pstate);
+            while (pstate.OuterState != null) {
+                pstate.OuterState.ActiveState = pstate;
                 activeStates.Add(pstate);
-                pstate = pstate.GetOuterState();
+                pstate = pstate.OuterState;
             } 
             activeStates.Add(pstate);
             outestState = pstate;
@@ -47,26 +47,26 @@ namespace StateChart
 
             //add init sub states
             pstate = state;
-            while (pstate.GetInitState() != null) {
-                pstate.SetActiveState(pstate.GetInitState());
-                pstate = state.GetInitState();
+            while (pstate.InitState != null) {
+                pstate.ActiveState = pstate.InitState;
+                pstate = state.InitState;
                 if(pstate != null) activeStates.Add(pstate);
             }
 
-            activeStates.Sort((x, y) => x.GetDepth() - y.GetDepth());
+            activeStates.Sort((x, y) => x.Depth - y.Depth);
             foreach (IState astate in activeStates) {
-                astate.Entry();
+                astate.DoEntry();
             }
         }
 
         void BuildStateTable(IState state, int depth_) 
         {
             if (state == null) return;
-            state.SetDepth(depth_);
+            state.Depth = depth_;
             typeStates.Add(state.type, state);
-            StateList statelsit = state.GetsubStates();
-            foreach (IState sstate in statelsit)
-            { BuildStateTable(sstate, depth_ + 1); }
+            foreach (IState sstate in state.IterateSubState()) { 
+                BuildStateTable(sstate, depth_ + 1); 
+            }
         }
 
         EResult Transit(IState state)
@@ -74,57 +74,58 @@ namespace StateChart
             IState lstate = null;
 
             lstate = outestState;
-            while (lstate.GetActiveState() != null) {  // we could save it.
-                lstate = lstate.GetActiveState();
+            while (lstate.ActiveState != null) {  // we could save it.
+                lstate = lstate.ActiveState;
             }
 
             IState rstate = state;
-            while (rstate.GetInitState() != null) {
-                    rstate = state.GetInitState();
+            while (rstate.InitState != null) {
+                    rstate = state.InitState;
             }
 
             IState ltail = lstate;  //save tail of active states
             IState rtail = rstate;    //save tail of init states
 
-            int dis = lstate.GetDepth() - rstate.GetDepth();
+            int dis = lstate.Depth - rstate.Depth;
             if (dis > 0) {
                 IState tstate = lstate; lstate = rstate; rstate = tstate;  //rstate will be deepest state
             }
             dis = Math.Abs(dis);
             for (int i = 0; i < dis; i++)  {
-                rstate = rstate.GetOuterState();
+                rstate = rstate.OuterState;
             }
             if (rstate == lstate)  //is family
                 return EResult.None;
             do
             { //find nearest outer state
-                rstate = rstate.GetOuterState();
-                lstate = lstate.GetOuterState();
+                rstate = rstate.OuterState;
+                lstate = lstate.OuterState;
             } while (lstate != rstate);
 
             do  // call exit chain 
             {
-                ltail.Exit();
-                ltail = ltail.GetOuterState();
+                ltail.DoExit();
+                ltail = ltail.OuterState;
             } while (ltail != lstate);
 
             //add tail chain active states
-            activeStates.RemoveRange(rstate.GetDepth() + 1, activeStates.Count - rstate.GetDepth() - 1);
+            activeStates.RemoveRange(rstate.Depth + 1, activeStates.Count - rstate.Depth - 1);
             do
             {
                 activeStates.Add(rtail);
                 lstate = rtail;
-                rtail = rtail.GetOuterState();
-                rtail.SetActiveState(lstate);
+                rtail = rtail.OuterState;
+                rtail.ActiveState = lstate;
             } while (rtail != rstate);
 
             // do entry chain
-            while(rstate.GetActiveState() != null) {
-                rstate = rstate.GetActiveState();
-                rstate.Entry();
+            while (rstate.ActiveState != null)
+            {
+                rstate = rstate.ActiveState;
+                rstate.DoEntry();
             }
 
-            activeStates.Sort((x, y) => x.GetDepth() - y.GetDepth());
+            activeStates.Sort((x, y) => x.Depth - y.Depth);
             return EResult.None;
         }
 
