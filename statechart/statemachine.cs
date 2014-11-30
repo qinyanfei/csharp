@@ -4,39 +4,36 @@ using System.Collections.Generic;
 
 namespace StateChart
 {
-    using StateList = List<IState>;
-    using RegionTable = Dictionary<System.Int32, List<IState>>;
-
     public enum EHistory
     { 
         Shallow,
         Deep,
     }
 
-    interface IStateMachine
+    interface IStateMachine<FSM>
     {
-        void Init(IState state);
+        void Init(IState<FSM> state);
+        void Process<EVENT>(EVENT evt);
+        EResult Transit<TState>();
         void Suspend();
         void Resume();
-        void Process(Event evt);
-        EResult Transit<TState>();
     }
 
     //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
     //supporting region is too complicate and not beautiful. region always could be replaced by more statemachine. 
     //you could directly create State<...> to use it. or you could inherit from it, this is a more powerful method.
-    class StateMachine : IStateMachine
+    public class StateMachine<HOST> : IStateMachine<HOST> where HOST : StateMachine<HOST>
     {
-        Dictionary<Type, IState> typeStates = new Dictionary<Type, IState>();
-        StateList activeStates = new StateList();
-        IState outestState = null;
+        Dictionary<Type, IState<HOST>> typeStates = new Dictionary<Type, IState<HOST>>();
+        List<IState<HOST>> activeStates = new List<IState<HOST>>();
+        IState<HOST> outestState = null;
         bool bSuspend = false;
 
         public StateMachine() { }
 
-        public void Init(IState state) 
+        public void Init(IState<HOST> state) 
         {
-            IState pstate = state;
+            IState<HOST> pstate = state;
 
             //add outer states
             while (pstate.OuterState != null) {
@@ -59,31 +56,31 @@ namespace StateChart
             }
 
             activeStates.Sort((x, y) => x.Depth - y.Depth);
-            foreach (IState astate in activeStates) {
-                astate.DoEntry();
+            foreach (IState<HOST> astate in activeStates) {
+                astate.DoEntry((HOST)(this));
             }
         }
 
-        void BuildStateTable(IState state, int depth_) 
+        void BuildStateTable(IState<HOST> state, int depth_) 
         {
             if (state == null) return;
             state.Depth = depth_;
             typeStates.Add(state.type, state);
-            foreach (IState sstate in state.IterateSubState()) { 
+            foreach (IState<HOST> sstate in state.IterateSubState()) { 
                 BuildStateTable(sstate, depth_ + 1); 
             }
         }
 
-        EResult Transit(IState state)
+        EResult Transit(IState<HOST> state)
         {
-            IState lstate = null;
+            IState<HOST> lstate = null;
 
             lstate = outestState;
-            while (lstate.ActiveState != null) {  // we could save it.
+            while (lstate.ActiveState != null) {  // we could save it if state tree is too high.
                 lstate = lstate.ActiveState;
             }
 
-            IState rstate = state;
+            IState<HOST> rstate = state;
             if (state.History == EHistory.Shallow)
                 while (rstate.InitState != null)
                     rstate = state.InitState;
@@ -92,12 +89,12 @@ namespace StateChart
                     rstate = rstate.ActiveState;
 
 
-            IState ltail = lstate;  //save tail of active states
-            IState rtail = rstate;    //save tail of init states
+            IState<HOST> ltail = lstate;  //save tail of active states
+            IState<HOST> rtail = rstate;    //save tail of init states
 
             int dis = lstate.Depth - rstate.Depth;
             if (dis > 0) {
-                IState tstate = lstate; lstate = rstate; rstate = tstate;  //rstate will be deepest state
+                IState<HOST> tstate = lstate; lstate = rstate; rstate = tstate;  //rstate will be deepest state
             }
             dis = Math.Abs(dis);
             for (int i = 0; i < dis; i++)  {
@@ -113,7 +110,7 @@ namespace StateChart
 
             do  // call exit chain 
             {
-                ltail.DoExit();
+                ltail.DoExit((HOST)this);
                 ltail = ltail.OuterState;
             } while (ltail != lstate);
 
@@ -131,7 +128,7 @@ namespace StateChart
             while (rstate.ActiveState != null)
             {
                 rstate = rstate.ActiveState;
-                rstate.DoEntry();
+                rstate.DoEntry((HOST)this);
             }
 
             activeStates.Sort((x, y) => x.Depth - y.Depth);
@@ -140,7 +137,7 @@ namespace StateChart
 
         public EResult Transit(Type stateType)
         {
-            IState state = null;
+            IState<HOST> state = null;
             if (!typeStates.TryGetValue(stateType, out state))
                 return EResult.None;
             return Transit(state);
@@ -149,11 +146,11 @@ namespace StateChart
         public EResult Transit<TState>() 
         { return Transit(typeof(TState)); }
 
-        public void Process(Event evt)
+        public void Process<EVENT>(EVENT evt)
         {
             if (bSuspend) return;
-            foreach (IState state in activeStates) {
-                if (bSuspend || state.Process(evt) == EResult.None)
+            foreach (IState<HOST> state in activeStates) {
+                if (bSuspend || state.Process((HOST)this, evt) == EResult.None)
                     break;
             }
         }
