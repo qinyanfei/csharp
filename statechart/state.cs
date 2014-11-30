@@ -4,109 +4,160 @@ using System.Collections.Generic;
 
 namespace StateChart
 {
-    using StateList = List<IState>;
-
-    public enum EResult
+    public enum EHistory
     { 
-        None,
-        Forwad,
-        Resume,
-        Defered,
-    }
-    
-    public delegate void Reaction();
-    public delegate EResult Reaction<T>(T obj);
-
-    public interface IState
-    {
-        void DoEntry();
-        void DoExit();
-        EResult Process(Event evt);
-        void AddSubState(IState state);
-        IEnumerable<IState> IterateSubState();
-
-        Type type { get; }
-        Reaction Entry { get; set; }
-        Reaction Exit { get; set; }
-        IState OuterState { get; }
-        IState ActiveState { get; set; }
-        IState InitState { get; set; }
-        int Depth { get; set; }
-        EHistory History { get; set; }
+        Shallow,
+        Deep,
     }
 
-    public class State<T> : IState
+    interface IStateMachine<FSM>
     {
-        public Type type { get { return typeof(T); } }
-        public EHistory History { get; set; }
-        public Reaction Entry { get; set; }
-        public Reaction Exit { get; set; }
+        void Init(IState<FSM> state);
+        void Process<EVENT>(EVENT evt);
+        EResult Transit<TState>();
+        void Suspend();
+        void Resume();
+    }
 
-        //could calc on runtime, but we need more fast spped this time.
-        public int Depth { get; set; }
-        public IState OuterState { get; set; }
-        public IState ActiveState { get; set; }
+    //state machine also could be a state, but this time i will not do this again, it just make things more terrible.
+    //supporting region is too complicate and not beautiful. region always could be replaced by more statemachine. 
+    //you could directly create State<...> to use it. or you could inherit from it, this is a more powerful method.
+    public class StateMachine<HOST> : IStateMachine<HOST> where HOST : StateMachine<HOST>
+    {
+        Dictionary<Type, IState<HOST>> typeStates = new Dictionary<Type, IState<HOST>>();
+        List<IState<HOST>> activeStates = new List<IState<HOST>>();
+        IState<HOST> outestState = null;
+        bool bSuspend = false;
 
-        Dictionary<Type, Reaction<Event>> reactions = new Dictionary<Type, Reaction<Event>>();
-        StateList subStates = new StateList();
+        public StateMachine() { }
 
-        IState initState = null;
-        public IState InitState  { 
-            get  {
-                if (initState == null)
-                    if (subStates.Count > 0) 
-                        initState = subStates[0];
-                return initState;
+        public void Init(IState<HOST> state) 
+        {
+            IState<HOST> pstate = state;
+
+            //add outer states
+            while (pstate.OuterState != null) {
+                pstate.OuterState.ActiveState = pstate;
+                activeStates.Add(pstate);
+                pstate = pstate.OuterState;
             } 
-            set { initState = value; }
-        }
+            activeStates.Add(pstate);
+            outestState = pstate;
+            
+            //build global type-to-state table
+            BuildStateTable(outestState, 0);
 
-        public State(IState ostate) {
-            Entry = OnEntry; Exit = OnExit;
-            History = EHistory.Shallow;
-            OuterState = ostate;
-            if (OuterState != null) OuterState.AddSubState(this);
-        }
+            //add init sub states
+            pstate = state;
+            while (pstate.InitState != null) {
+                pstate.ActiveState = pstate.InitState;
+                pstate = state.InitState;
+                if(pstate != null) activeStates.Add(pstate);
+            }
 
-        public State(IState ostate, EHistory history_) {
-            Entry = OnEntry; Exit = OnExit;
-            OuterState = ostate;
-            History = history_;
-            if (OuterState != null) OuterState.AddSubState(this);
-        }
-		
-        public void DoEntry() {
-            if (Entry != null) Entry();
-            else OnEntry();
-        }
-        public void DoExit()  {
-            if (Exit != null) Exit();
-            else OnExit();
-        }
-
-        public virtual void OnEntry() { }
-        public virtual void OnExit() { }
-
-        public EResult Process(Event evt)   { 
-            Reaction<Event> reaction = null;
-            bool hasit = reactions.TryGetValue(evt.GetType(), out reaction);
-            if (!hasit) return EResult.Forwad;
-            return reaction(evt);
-        }
-
-        public void Bind<E>(Reaction<Event> reaction)
-        { reactions.Add(typeof(E), reaction); }
-
-        public void AddSubState(IState sstate) {
-            IState state = subStates.Find((x) => x.type == sstate.type);
-            if (state != null) return;
-            subStates.Add(sstate);
-        }
-
-        public IEnumerable<IState> IterateSubState() {
-            foreach (IState state in subStates) {
-                yield return state;
+            activeStates.Sort((x, y) => x.Depth - y.Depth);
+            foreach (IState<HOST> astate in activeStates) {
+                astate.DoEntry((HOST)(this));
             }
         }
+
+        void BuildStateTable(IState<HOST> state, int depth_) 
+        {
+            if (state == null) return;
+            state.Depth = depth_;
+            typeStates.Add(state.type, state);
+            foreach (IState<HOST> sstate in state.IterateSubState()) { 
+                BuildStateTable(sstate, depth_ + 1); 
+            }
+        }
+
+        EResult Transit(IState<HOST> state)
+        {
+            IState<HOST> lstate = null;
+
+            lstate = outestState;
+            while (lstate.ActiveState != null) {  // we could save it if state tree is too high.
+                lstate = lstate.ActiveState;
+            }
+
+            IState<HOST> rstate = state;
+            if (state.History == EHistory.Shallow)
+                while (rstate.InitState != null)
+                    rstate = state.InitState;
+            else
+                while (rstate.ActiveState != null)
+                    rstate = rstate.ActiveState;
+
+
+            IState<HOST> ltail = lstate;  //save tail of active states
+            IState<HOST> rtail = rstate;    //save tail of init states
+
+            int dis = lstate.Depth - rstate.Depth;
+            if (dis > 0) {
+                IState<HOST> tstate = lstate; lstate = rstate; rstate = tstate;  //rstate will be deepest state
+            }
+            dis = Math.Abs(dis);
+            for (int i = 0; i < dis; i++)  {
+                rstate = rstate.OuterState;
+            }
+            if (rstate == lstate)  //is family
+                return EResult.None;
+            do
+            { //find nearest outer state
+                rstate = rstate.OuterState;
+                lstate = lstate.OuterState;
+            } while (lstate != rstate);
+
+            do  // call exit chain 
+            {
+                ltail.DoExit((HOST)this);
+                ltail = ltail.OuterState;
+            } while (ltail != lstate);
+
+            //add tail chain active states
+            activeStates.RemoveRange(rstate.Depth + 1, activeStates.Count - rstate.Depth - 1);
+            do
+            {
+                activeStates.Add(rtail);
+                lstate = rtail;
+                rtail = rtail.OuterState;
+                rtail.ActiveState = lstate;
+            } while (rtail != rstate);
+
+            // do entry chain
+            while (rstate.ActiveState != null)
+            {
+                rstate = rstate.ActiveState;
+                rstate.DoEntry((HOST)this);
+            }
+
+            activeStates.Sort((x, y) => x.Depth - y.Depth);
+            return EResult.None;
+        }
+
+        public EResult Transit(Type stateType)
+        {
+            IState<HOST> state = null;
+            if (!typeStates.TryGetValue(stateType, out state))
+                return EResult.None;
+            return Transit(state);
+        }
+
+        public EResult Transit<TState>() 
+        { return Transit(typeof(TState)); }
+
+        public void Process<EVENT>(EVENT evt)
+        {
+            if (bSuspend) return;
+            foreach (IState<HOST> state in activeStates) {
+                if (bSuspend || state.Process((HOST)this, evt) == EResult.None)
+                    break;
+            }
+        }
+
+        public void Suspend()
+        { bSuspend = true; }
+        public void Resume()
+        { bSuspend = false; }
     }
 }
