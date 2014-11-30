@@ -17,7 +17,7 @@ namespace StateChart
     public delegate void Reaction();
     public delegate EResult Reaction<T>(T obj);
 
-    interface IState
+    public interface IState
     {
         void DoEntry();
         void DoExit();
@@ -35,60 +35,59 @@ namespace StateChart
         EHistory History { get; set; }
     }
 
-    class State<T> : IState
+    public class State<T> : IState
     {
-        int depth = -1;  //could calc on runtime, but we need more fast spped this time.
-        public int Depth { get { return depth; } set { depth = value; } }
-        Reaction entryCallback = null;
-        public Reaction Entry { get { return entryCallback; } set { entryCallback = value; } }
-        Reaction exitCallback = null;
-        public Reaction Exit { get { return exitCallback; } set { exitCallback = value; } }
+        public Type type { get { return typeof(T); } }
+        public EHistory History { get; set; }
+        public Reaction Entry { get; set; }
+        public Reaction Exit { get; set; }
+
+        //could calc on runtime, but we need more fast spped this time.
+        public int Depth { get; set; }
+        public IState OuterState { get; set; }
+        public IState ActiveState { get; set; }
 
         Dictionary<Type, Reaction<Event>> reactions = new Dictionary<Type, Reaction<Event>>();
         StateList subStates = new StateList();
 
-        IState outerState = null;
-        public IState OuterState 
-        { get { return outerState; } }
-
-        IState activeState = null;
-        public IState ActiveState { get { return activeState; } set { activeState = value; } }
-
         IState initState = null;
-        public IState InitState 
-        { 
-            get 
-            {
+        public IState InitState  { 
+            get  {
                 if (initState == null)
-                    if (subStates.Count > 0)
+                    if (subStates.Count > 0) 
                         initState = subStates[0];
                 return initState;
             } 
             set { initState = value; }
         }
 
-        public Type type { get { return typeof(T); } }
-        public EHistory History { get; set; }
-
-        public State(IState ostate, EHistory history_ = EHistory.Shallow)
-        {
+        public State(IState ostate) {
             Entry = OnEntry; Exit = OnExit;
-            outerState = ostate;
-            History = history_;
-            if(outerState != null)
-                outerState.AddSubState(this);
+            History = EHistory.Shallow;
+            OuterState = ostate;
+            if (OuterState != null) OuterState.AddSubState(this);
         }
 
-        public void DoEntry()
-        { if (Entry != null) Entry(); Console.WriteLine("entry: " + typeof(T).ToString()); }
-        public void DoExit()
-        { if (Exit != null) Exit(); Console.WriteLine("exit: " + typeof(T).ToString()); }
+        public State(IState ostate, EHistory history_) {
+            Entry = OnEntry; Exit = OnExit;
+            OuterState = ostate;
+            History = history_;
+            if (OuterState != null) OuterState.AddSubState(this);
+        }
+		
+        public void DoEntry() {
+            if (Entry != null) Entry();
+            else OnEntry();
+        }
+        public void DoExit()  {
+            if (Exit != null) Exit();
+            else OnExit();
+        }
 
-        protected virtual void OnEntry() { }
-        protected virtual void OnExit() { }
+        public virtual void OnEntry() { }
+        public virtual void OnExit() { }
 
-        public EResult Process(Event evt) 
-        { 
+        public EResult Process(Event evt)   { 
             Reaction<Event> reaction = null;
             bool hasit = reactions.TryGetValue(evt.GetType(), out reaction);
             if (!hasit) return EResult.Forwad;
@@ -98,8 +97,7 @@ namespace StateChart
         public void Bind<E>(Reaction<Event> reaction)
         { reactions.Add(typeof(E), reaction); }
 
-        public void AddSubState(IState sstate)
-        {
+        public void AddSubState(IState sstate) {
             IState state = subStates.Find((x) => x.type == sstate.type);
             if (state != null) return;
             subStates.Add(sstate);
