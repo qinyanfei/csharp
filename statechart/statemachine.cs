@@ -13,7 +13,8 @@ namespace StateChart
     public interface IStateMachine<FSM>
     {
         void Init(IState<FSM> state);
-        void Process<EVENT>(EVENT evt);
+        void Process<EVENT>(EVENT evt) where EVENT : IEvent;
+        void PostEvent<EVENT>(EVENT evt) where EVENT : IEvent;
         EResult Transit<TState>();
         void Suspend();
         void Resume();
@@ -26,6 +27,7 @@ namespace StateChart
     {
         Dictionary<Type, IState<HOST>> typeStates = new Dictionary<Type, IState<HOST>>();
         List<IState<HOST>> activeStates = new List<IState<HOST>>();
+        Queue<IEvent> eventQueue = new Queue<IEvent>();
         IState<HOST> outestState = null;
         bool bSuspend = false;
 
@@ -146,13 +148,30 @@ namespace StateChart
         public EResult Transit<TSTATE>()
         { return Transit(typeof(TSTATE)); }
 
-        public void Process<EVENT>(EVENT evt)
+        public void Process<EVENT>(EVENT evt) where EVENT : IEvent
         {
             if (bSuspend) return;
-            foreach (IState<HOST> state in activeStates) {
-                if (bSuspend || state.Process((HOST)this, evt) == EResult.None)
+
+            eventQueue.Enqueue(evt);
+
+            IEvent pevent = eventQueue.Dequeue();
+            while (pevent != null)
+            {
+                foreach (IState<HOST> state in activeStates)
+                {
+                    if (bSuspend || state.Process((HOST)this, pevent) == EResult.None)
+                        break;
+                }
+                if (eventQueue.Count == 0) 
                     break;
+                pevent = eventQueue.Dequeue();
             }
+        }
+
+        public void PostEvent<EVENT>(EVENT evt) where EVENT : IEvent
+        {
+            if (bSuspend) return;
+            eventQueue.Enqueue(evt);
         }
 
         public void Suspend()
