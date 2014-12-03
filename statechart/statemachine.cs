@@ -10,7 +10,7 @@ namespace StateChart
         Deep,
     }
 
-    interface IStateMachine<FSM>
+    public interface IStateMachine<FSM>
     {
         void Init(IState<FSM> state);
         void Process<EVENT>(EVENT evt);
@@ -93,9 +93,9 @@ namespace StateChart
             IState<HOST> rtail = rstate;    //save tail of init states
 
             int dis = lstate.Depth - rstate.Depth;
-            if (dis > 0) {
-                IState<HOST> tstate = lstate; lstate = rstate; rstate = tstate;  //rstate will be deepest state
-            }
+            if (dis > 0)
+                { IState<HOST> tstate = lstate; lstate = rstate; rstate = tstate; } //rstate will be deepest state
+
             dis = Math.Abs(dis);
             for (int i = 0; i < dis; i++)  {
                 rstate = rstate.OuterState;
@@ -143,8 +143,8 @@ namespace StateChart
             return Transit(state);
         }
 
-        public EResult Transit<TState>() 
-        { return Transit(typeof(TState)); }
+        public EResult Transit<TSTATE>()
+        { return Transit(typeof(TSTATE)); }
 
         public void Process<EVENT>(EVENT evt)
         {
