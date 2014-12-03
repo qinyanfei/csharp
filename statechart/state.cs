@@ -87,13 +87,13 @@ namespace StateChart
 
         public void DoEntry(FSM fsm_)
         {
-            UnityEngine.Debug.Log("Entry: " + type.ToString());
+            //UnityEngine.Debug.Log("Entry: " + type.ToString());
             if (Entry != null) Entry(fsm_);
             else OnEntry(fsm_);
         }
         public void DoExit(FSM fsm_)
         {
-            UnityEngine.Debug.Log("Exit : " + type.ToString());
+            //UnityEngine.Debug.Log("Exit : " + type.ToString());
             if (Exit != null) Exit(fsm_);
             else OnExit(fsm_);
         }
