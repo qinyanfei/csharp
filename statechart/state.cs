@@ -55,6 +55,7 @@ namespace StateChart
         public IState<FSM> ActiveState { get; set; }
 
         Dictionary<Type, IReaction> reactions = new Dictionary<Type, IReaction>();
+        Dictionary<Type, Type> transitions = new Dictionary<Type, Type>();
         List<IState<FSM>> subStates = new List<IState<FSM>>();
 
         IState<FSM> initState = null;
@@ -86,11 +87,13 @@ namespace StateChart
 
         public void DoEntry(FSM fsm_)
         {
+            UnityEngine.Debug.Log("Entry: " + type.ToString());
             if (Entry != null) Entry(fsm_);
             else OnEntry(fsm_);
         }
         public void DoExit(FSM fsm_)
         {
+            UnityEngine.Debug.Log("Exit : " + type.ToString());
             if (Exit != null) Exit(fsm_);
             else OnExit(fsm_);
         }
@@ -105,14 +108,22 @@ namespace StateChart
             return reaction.Execute<FSM, EVENT>(fsm_, evt);
         }
 
-        public void Bind<EVENT>(Reaction<FSM, EVENT> reaction)
+
+        public void Bind<EVENT>(Reaction<FSM, EVENT> reaction) where EVENT : IEvent
         {
+            if (transitions.ContainsKey(typeof(EVENT)))
+                throw new System.InvalidOperationException();
             IReaction ireaction = new CReaction<FSM, EVENT>(reaction);
             reactions.Add(typeof(EVENT), ireaction); 
         }
 
-        public void Bind<EVENT, TSTATE>(Reaction<FSM, EVENT> reaction) { 
-            
+        public void Bind<EVENT, TSTATE>()
+            where EVENT : IEvent
+            where TSTATE : IState<FSM>
+        {
+            if (reactions.ContainsKey(typeof(EVENT)))
+                throw new System.InvalidOperationException();
+            transitions.Add(typeof(EVENT), typeof(TSTATE));
         }
 
         public void AddSubState(IState<FSM> sstate)
