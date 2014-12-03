@@ -3,7 +3,12 @@ using System.Collections.Generic;
 
 namespace StateChart
 {
-    public class Event
+    public interface IEvent
     {
+        Type type { get; }
+    }
+    public class Event<T> : IEvent
+    {
+        public Type type { get { return typeof(T); } }
     }
 }
