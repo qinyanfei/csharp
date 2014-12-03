@@ -24,20 +24,20 @@ namespace StateChart
         { return reaction((FSM)(object)fsm_, (EVENT)(object)evt); }
     }
 
-    public interface IState<F>
+    public interface IState<FSM>
     {
-        void DoEntry(F fsm_);
-        void DoExit(F fsm_);
-        EResult Process<EVENT>(F fsm_, EVENT evt);
-        void AddSubState(IState<F> state);
-        IEnumerable<IState<F>> IterateSubState();
+        void DoEntry(FSM fsm_);
+        void DoExit(FSM fsm_);
+        EResult Process<EVENT>(FSM fsm_, EVENT evt);
+        void AddSubState(IState<FSM> state);
+        IEnumerable<IState<FSM>> IterateSubState();
 
         Type type { get; }
-        Reaction<F> Entry { get; set; }
-        Reaction<F> Exit { get; set; }
-        IState<F> OuterState { get; }
-        IState<F> ActiveState { get; set; }
-        IState<F> InitState { get; set; }
+        Reaction<FSM> Entry { get; set; }
+        Reaction<FSM> Exit { get; set; }
+        IState<FSM> OuterState { get; }
+        IState<FSM> ActiveState { get; set; }
+        IState<FSM> InitState { get; set; }
         int Depth { get; set; }
         EHistory History { get; set; }
     }
@@ -109,6 +109,10 @@ namespace StateChart
         {
             IReaction ireaction = new CReaction<FSM, EVENT>(reaction);
             reactions.Add(typeof(EVENT), ireaction); 
+        }
+
+        public void Bind<EVENT, TSTATE>(Reaction<FSM, EVENT> reaction) { 
+            
         }
 
         public void AddSubState(IState<FSM> sstate)
