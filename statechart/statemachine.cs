@@ -154,17 +154,11 @@ namespace StateChart
 
             eventQueue.Enqueue(evt);
 
-            IEvent pevent = eventQueue.Dequeue();
-            while (pevent != null)
-            {
+            while (eventQueue.Count > 0) {
+                IEvent pevent = eventQueue.Dequeue();
                 foreach (IState<HOST> state in activeStates)
-                {
                     if (bSuspend || state.Process((HOST)this, pevent) == EResult.None)
                         break;
-                }
-                if (eventQueue.Count == 0) 
-                    break;
-                pevent = eventQueue.Dequeue();
             }
         }
 
